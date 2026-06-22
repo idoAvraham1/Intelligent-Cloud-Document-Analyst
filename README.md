@@ -25,7 +25,6 @@ Both Flask APIs must be running: `extract_api` (**8001**) · `metadata_api` (**8
 | `extract_api/` | PDF & DOCX text extraction (Flask, port 8001) |
 | `metadata_api/` | Metadata enrichment (Flask, port 8000) |
 | `workflows/` | `Document Analyst.json` · `send_daily_mail.json` |
-| `output_docs/` | Generated `.json` and `.md` reports per document |
 | `images/` | Screenshots below |
 
 ---
@@ -66,11 +65,19 @@ Both Flask APIs must be running: `extract_api` (**8001**) · `metadata_api` (**8
 
 **Proof of working outputs**
 
+**Google Sheets — logged results**
+
 ![Google Sheets](./images/sheet.png)
+
+**New document processed — completion email**
 
 ![Document processed email](./images/new_doc_mail.png)
 
+**Confidential document — immediate review alert**
+
 ![Confidential alert](./images/Immediate_review_mail.png)
+
+**Unsupported file type — rejection alert**
 
 ![Unsupported file rejected](./images/unsupported_file_mail.png)
 
@@ -85,6 +92,8 @@ Both Flask APIs must be running: `extract_api` (**8001**) · `metadata_api` (**8
 | Code | Filters last 24h · builds HTML summary |
 | IF | Sends only when documents exist |
 | Gmail | Daily digest email |
+
+**Daily digest — summary of last 24h**
 
 ![Daily digest email](./images/daily_mail.png)
 
