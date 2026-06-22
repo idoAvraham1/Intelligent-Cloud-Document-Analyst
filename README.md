@@ -1,9 +1,20 @@
 # Intelligent Cloud Document Analyst
 
-**Scenario:** Business documents (contracts, invoices, purchase orders, vendor agreements)  
-**Stack:** n8n · Google Gemini 3 Flash · Flask APIs · Google Sheets · Gmail
+**Scenario:** Business documents · **Stack:** n8n · Gemini 3 Flash · Flask · Google Sheets · Gmail
 
-Automated pipeline: a new file in Google Drive is extracted, analyzed by Gemini, enriched by a custom metadata API, logged to Google Sheets, and reported by email.
+---
+
+## Overview
+
+This project implements **2 n8n workflows** (JSON exports in `workflows/`):
+
+**1. Document Analyst (main)**  
+`incoming_docs` upload → parse (`extract_api` / Code) → Gemini analysis → enrich (`metadata_api`) → Google Sheets + `output_docs/` (`.json` + `.md`) + email · fallback: bad file type / Gemini error / confidential alert
+
+**2. Daily digest (bonus)**  
+Every day at **4:15 PM** → read Google Sheets → filter last 24h → build summary → Gmail digest
+
+Both Flask APIs must be running: `extract_api` (**8001**) · `metadata_api` (**8000**)
 
 ---
 
@@ -12,84 +23,93 @@ Automated pipeline: a new file in Google Drive is extracted, analyzed by Gemini,
 | Path | Role |
 |------|------|
 | `extract_api/` | PDF & DOCX text extraction (Flask, port 8001) |
-| `metadata_api/` | Department, sensitivity, routing enrichment (Flask, port 8000) |
-| `workflows/` | Exported n8n workflows (see below) |
-| `incoming_docs/` | Sample test documents |
-| `images/` | Screenshots referenced in this README |
-
-### extract_api
-
-Used by the main workflow for **PDF** (PyMuPDF) and **DOCX** (python-docx) files. n8n sends the downloaded file to `POST /extract` (multipart field `file`). Returns `filename`, `file_type`, `extracted_text`.
-
-Also exposes `GET /health`.
-
-### metadata_api
-
-Called after Gemini parsing. `POST /enrich` adds `document_id`, `department`, `sensitivity`, `routing_tag`, `keyword_tags`, adjusted `confidence_score`, and `processed_at`.
-
-Also exposes `GET /health`, `GET /categories`, `POST /sensitivity`.
-
-**Both APIs must be running** before the n8n workflows execute — `extract_api` on port **8001** (PDF/DOCX parsing) and `metadata_api` on port **8000** (enrichment after Gemini).
-
-### Workflow exports (`workflows/`)
-
-| File | Description |
-|------|-------------|
-| `Document Analyst.json` | Main document processing pipeline |
-| `send_daily_mail.json` | Scheduled daily digest (bonus) |
-
-Import in n8n via **Workflows → Import from File**. Credentials (Google Drive, Sheets, Gmail, Gemini API key) must be reconnected after import.
+| `metadata_api/` | Metadata enrichment (Flask, port 8000) |
+| `workflows/` | `Document Analyst.json` · `send_daily_mail.json` |
+| `output_docs/` | Generated `.json` and `.md` reports per document |
+| `images/` | Screenshots below |
 
 ---
 
-## Main workflow
+## The two workflows
 
-[Open full-size main flow screenshot](./images/main_flow.png)
+**1. Document Analyst (main)**
 
-![Main n8n workflow](./images/main_flow.png)
+[Open full size](./images/main_flow.png)
+
+![Document Analyst workflow](./images/main_flow.png)
+
+**2. Daily digest (bonus)**
+
+[Open full size](./images/daily_mail_flow.png)
+
+![Daily digest workflow](./images/daily_mail_flow.png)
+
+---
+
+## Workflow 1 — Document Analyst (breakdown)
 
 | Stage | What happens |
 |-------|----------------|
-| **Trigger** | Google Drive — new file in watched folder → download |
-| **Parsing** | Switch on extension: **txt** (Code) · **pdf/docx** (`extract_api`) → Merge → Clean text |
-| **Gemini** | Build prompt → Gemini 3 Flash (structured JSON) → Parse response |
+| **Trigger** | New file uploaded to `incoming_docs` (Google Drive) → download |
+| **Parsing** | Switch: **txt** (Code) · **pdf/docx** (`extract_api`) → Merge → Clean text |
+| **Gemini** | Prompt → Gemini 3 Flash (JSON) → Parse |
 | **Enrich** | `metadata_api` — department, sensitivity, routing tag |
-| **Outputs** | Append row to Google Sheets · upload report to Drive · send completion email |
+| **Outputs** | Google Sheets row · `output_docs/{filename}_report.json` · `output_docs/{filename}_report.md` · completion email |
 
-### Fallback logic
+**Fallback logic**
 
-| Branch | Trigger | Result |
-|--------|---------|--------|
-| Unsupported file type | Switch fallback (not txt / pdf / docx) | Rejection email |
-| Gemini API failure | HTTP Request error output (after retries) | Failure alert email |
-| Confidential document | IF `sensitivity = confidential` after Enrich | Immediate review email; pipeline continues |
+| Branch | When | Result |
+|--------|------|--------|
+| Unsupported file | Switch fallback | Rejection email |
+| Gemini failure | HTTP error output | Alert email |
+| Confidential doc | After Enrich | Immediate review email |
 
-### Working outputs
+**Proof of working outputs**
 
-**Google Sheets — one row per processed document**
-
-![Google Sheets results](./images/sheet.png)
-
-**Email — document processed successfully**
+![Google Sheets](./images/sheet.png)
 
 ![Document processed email](./images/new_doc_mail.png)
 
-**Email — confidential document alert**
+![Confidential alert](./images/Immediate_review_mail.png)
 
-![Confidential alert email](./images/Immediate_review_mail.png)
-
-**Email — unsupported file type rejected**
-
-![Unsupported file email](./images/unsupported_file_mail.png)
+![Unsupported file rejected](./images/unsupported_file_mail.png)
 
 ---
 
-## Daily digest workflow (bonus)
+## Workflow 2 — Daily digest (breakdown)
 
-[Open full-size daily mail flow screenshot](./images/daily_mail_flow.png)
-
-![Daily mail n8n workflow](./images/daily_mail_flow.png)
-
-Schedule Trigger → read Google Sheets → Code (filter last 24h, build summary) → IF rows exist → Gmail digest.
+| Step | What happens |
+|------|----------------|
+| Schedule Trigger | Runs once per day |
+| Get row(s) in sheet | Reads results spreadsheet |
+| Code | Filters last 24h · builds HTML summary |
+| IF | Sends only when documents exist |
+| Gmail | Daily digest email |
 
 ![Daily digest email](./images/daily_mail.png)
+
+---
+
+## Python APIs
+
+### extract_api (port 8001)
+
+Handles text extraction for **PDF** (PyMuPDF) and **DOCX** (python-docx). Called from the main workflow on the pdf/docx branch — n8n sends the downloaded file to `POST /extract` (multipart field `file`). Returns `filename`, `file_type`, `extracted_text`.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
+| `POST /extract` | Extract text from uploaded PDF or DOCX |
+
+### metadata_api (port 8000)
+
+Called after Gemini parsing. Adds business-specific metadata on top of the AI output.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Health check |
+| `GET /categories` | Business document categories |
+| `POST /sensitivity` | Returns `public` / `internal` / `confidential` |
+| `POST /enrich` | Adds `document_id`, `department`, `sensitivity`, `routing_tag`, `keyword_tags`, adjusted `confidence_score`, `processed_at` |
+
+Both services must be started before running the Document Analyst workflow.
