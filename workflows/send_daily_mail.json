@@ -1,0 +1,209 @@
+{
+  "name": "send_daily_mail",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 16,
+              "triggerAtMinute": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -496,
+        16
+      ],
+      "id": "c5666887-b020-4c20-a79f-c6fb41df8246",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1-n8CBdpSwzuI5MeJIsaMLSgb9vmNyIwlwTCoaZ5bjuY",
+          "mode": "list",
+          "cachedResultName": "n8n-project",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-n8CBdpSwzuI5MeJIsaMLSgb9vmNyIwlwTCoaZ5bjuY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-n8CBdpSwzuI5MeJIsaMLSgb9vmNyIwlwTCoaZ5bjuY/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -272,
+        16
+      ],
+      "id": "d4368d39-213b-4edf-a695-32e8e3dd1e7b",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "z7IOsVnCVWdGXH98",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "ido14725666@gmail.com",
+        "subject": "=Daily Document Digest — {{ $json.count }} documents (last 24h)",
+        "message": "={{ $json.summary_html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        -80
+      ],
+      "id": "0a6be8ba-684d-41f0-8e69-1b8aac5a0b52",
+      "name": "Send a message",
+      "webhookId": "afa33306-bb6e-499f-b8da-890fc3491199",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "037NiQN31t8XQl28",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        400,
+        112
+      ],
+      "id": "f7903935-3c62-45da-9ef4-572c5a7c20aa",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst now = new Date();\nconst cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);\n\nfunction normalizeKey(key) {\n  return String(key).trim().toLowerCase().replace(/\\s+/g, '_');\n}\n\nfunction getField(row, ...names) {\n  const map = {};\n  for (const [key, value] of Object.entries(row)) {\n    map[normalizeKey(key)] = value;\n  }\n\n  for (const name of names) {\n    const val = map[normalizeKey(name)];\n    if (val !== undefined && val !== null && String(val).trim() !== '') {\n      return String(val).trim();\n    }\n  }\n  return '';\n}\n\nconst rows = items\n  .map(i => i.json)\n  .filter(r => {\n    const ts = getField(r, 'processed_at');\n    if (!ts) return false;\n    return new Date(ts) >= cutoff;\n  });\n\nconst countBy = (field) => rows.reduce((acc, r) => {\n  const key = getField(r, field) || 'unknown';\n  acc[key] = (acc[key] || 0) + 1;\n  return acc;\n}, {});\n\nconst classifications = countBy('classification');\nconst departments = countBy('department');\nconst confidential = rows.filter(r => getField(r, 'sensitivity') === 'confidential').length;\n\nconst htmlList = rows.map(r => {\n  const filename = getField(r, 'filename');\n  const classification = getField(r, 'classification');\n  const department = getField(r, 'department');\n  const routing = getField(r, 'routing_tag');\n  const sensitivity = getField(r, 'sensitivity');\n\n  return `<li><b>${filename}</b> — ${classification} / ${department} / ${routing} (${sensitivity})</li>`;\n}).join('');\n\nconst summaryHtml = `\n<h2>Daily Document Digest</h2>\n<p><b>Period:</b> last 24 hours<br>\n<b>Total processed:</b> ${rows.length}<br>\n<b>Confidential:</b> ${confidential}</p>\n\n<h3>By classification</h3>\n<ul>${Object.entries(classifications).map(([k,v]) => `<li>${k}: ${v}</li>`).join('') || '<li>none</li>'}</ul>\n\n<h3>By department</h3>\n<ul>${Object.entries(departments).map(([k,v]) => `<li>${k}: ${v}</li>`).join('') || '<li>none</li>'}</ul>\n\n<h3>Documents</h3>\n<ul>${htmlList || '<li>none</li>'}</ul>\n`;\n\nreturn [{\n  json: {\n    count: rows.length,\n    summary_html: summaryHtml,\n    has_data: rows.length > 0\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        16
+      ],
+      "id": "e264f56b-cd2d-4ff1-9612-b00f84d261cd",
+      "name": "Filter last 24h documents only"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9f1a90ce-f123-424c-a890-ee24bbbd5bd2",
+              "leftValue": "={{ $json.count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        176,
+        16
+      ],
+      "id": "6ac7f2f1-8b9f-4a57-b95b-986aabe094c3",
+      "name": "if new document was added"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter last 24h documents only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter last 24h documents only": {
+      "main": [
+        [
+          {
+            "node": "if new document was added",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if new document was added": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Jerusalem",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "f60b1a8c-1a59-4ada-8725-57eac9441f4a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ce2bc86535d7d0c864687902389e4683bfa52770a28941e46f2df30ff2f77ac4"
+  },
+  "nodeGroups": [],
+  "id": "XhKSvqhjVZExVWO9",
+  "tags": []
+}
