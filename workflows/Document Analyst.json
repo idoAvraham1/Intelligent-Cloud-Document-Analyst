@@ -89,7 +89,7 @@
       "typeVersion": 3.4,
       "position": [
         -1040,
-        32
+        0
       ],
       "id": "771d2693-88a5-414f-bb7e-e58bea5ce779",
       "name": "Switch"
@@ -100,7 +100,7 @@
       "typeVersion": 3.2,
       "position": [
         -592,
-        -32
+        32
       ],
       "id": "3d81b16d-e62a-45cf-80f7-d990799de5df",
       "name": "Merge"
@@ -113,7 +113,7 @@
       "typeVersion": 2,
       "position": [
         -816,
-        -128
+        -48
       ],
       "id": "8175d5ea-71b0-4388-9cbe-65b4493973eb",
       "name": "txt parsing"
@@ -140,10 +140,13 @@
       "typeVersion": 4.4,
       "position": [
         -816,
-        64
+        80
       ],
       "id": "5562bb34-e194-43f1-b52d-a4651194fe6f",
-      "name": "PDF/docx parsing"
+      "name": "PDF/docx parsing",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -152,8 +155,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -144,
-        -32
+        -176,
+        32
       ],
       "id": "98695c41-79d9-4eb7-8a3b-f48d4697e796",
       "name": "Add prompt"
@@ -165,8 +168,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -368,
-        -32
+        -384,
+        32
       ],
       "id": "7831448c-6b8b-4c10-8c7e-e4665b320f26",
       "name": "Clean text"
@@ -194,8 +197,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        80,
-        -32
+        32,
+        32
       ],
       "id": "514f39eb-97d2-4431-ab9d-57a7ce01f9d1",
       "name": "Gemini API",
@@ -229,24 +232,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        512,
-        -48
+        400,
+        16
       ],
       "id": "1a01d911-cc66-4fdf-bb0f-d10cbbb357c6",
-      "name": "Enrich"
-    },
-    {
-      "parameters": {
-        "jsCode": "const gemini = $('Parse Gemini').first().json;  // your parse node name\nconst enrich = $input.first().json;\n\nreturn [{\n  json: {\n    ...gemini,\n    ...enrich,\n    summary_short: (gemini.summary || '').slice(0, 500),\n    action_items: Array.isArray(gemini.action_items)\n      ? gemini.action_items.join(', ')\n      : gemini.action_items\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        752,
-        160
-      ],
-      "id": "c9dadff7-2f43-4b04-8b59-a686827078eb",
-      "name": "merge resulsts"
+      "name": "Enrich",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -401,8 +394,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        976,
-        0
+        864,
+        96
       ],
       "id": "22a98bf2-5500-4fe3-a867-74cde25b4296",
       "name": "Append row in sheet",
@@ -420,24 +413,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        320,
-        -48
+        240,
+        16
       ],
       "id": "21b2100b-7894-4d9a-ac9d-51ec281ed965",
       "name": "Parse Gemini"
-    },
-    {
-      "parameters": {
-        "jsCode": "const item = $input.first().json;\n\nconst report = {\n  document_id: item.document_id,\n  filename: item.filename,\n  classification: item.classification,\n  department: item.department,\n  sentiment: item.sentiment,\n  sensitivity: item.sensitivity,\n  routing_tag: item.routing_tag,\n  confidence_score: item.confidence_score,\n  processed_at: item.processed_at,\n  summary: item.summary,\n  action_items: item.action_items,\n  entities: item.entities\n};\n\nconst baseName = item.filename.replace(/\\.[^.]+$/, '');\n\nconst jsonPath = `/data/output_docs/${baseName}_report.json`;\nconst mdPath = `/data/output_docs/${baseName}_report.md`;\n\nconst markdown = `# Document Report: ${item.filename}\n\n- **Document ID:** ${item.document_id}\n- **Classification:** ${item.classification}\n- **Department:** ${item.department}\n- **Sentiment:** ${item.sentiment}\n- **Sensitivity:** ${item.sensitivity}\n- **Routing tag:** ${item.routing_tag}\n\n## Summary\n${item.summary}\n\n## Action items\n${item.action_items}\n`;\n\nconst jsonBuffer = Buffer.from(JSON.stringify(report, null, 2), 'utf8');\nconst mdBuffer = Buffer.from(markdown, 'utf8');\n\nreturn [\n  {\n    json: { ...item, output_path: jsonPath },\n    binary: {\n      data: await this.helpers.prepareBinaryData(\n        jsonBuffer,\n        `${baseName}_report.json`,\n        'application/json'\n      )\n    }\n  },\n  {\n    json: { ...item, output_path: mdPath },\n    binary: {\n      data: await this.helpers.prepareBinaryData(\n        mdBuffer,\n        `${baseName}_report.md`,\n        'text/markdown'\n      )\n    }\n  }\n];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        976,
-        160
-      ],
-      "id": "dfd52493-12d7-4eed-864d-d0f163483c8f",
-      "name": "Build report conent"
     },
     {
       "parameters": {
@@ -449,8 +429,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        976,
-        352
+        864,
+        448
       ],
       "id": "ba0bd5d9-c080-40b2-8898-75b6fc9c34da",
       "name": "Send a message",
@@ -486,7 +466,7 @@
       "typeVersion": 1,
       "position": [
         -1488,
-        64
+        32
       ],
       "id": "06f8e62e-fd7c-412a-b557-3126885c7e49",
       "name": "Google Drive Trigger",
@@ -511,7 +491,7 @@
       "typeVersion": 3,
       "position": [
         -1264,
-        64
+        32
       ],
       "id": "ece60f62-c22a-4c87-98ed-4b723c51195e",
       "name": "Download file",
@@ -542,8 +522,8 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        1200,
-        160
+        1056,
+        272
       ],
       "id": "c97e8a37-6de9-4602-9819-d8488cddfad8",
       "name": "Upload file",
@@ -559,8 +539,8 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        976,
-        -224
+        848,
+        -160
       ],
       "id": "746fc27d-5534-47da-93d3-dd28b426ab42",
       "name": "No Operation, do nothing"
@@ -568,14 +548,14 @@
     {
       "parameters": {
         "content": "## Trigger",
-        "height": 272,
-        "width": 400,
+        "height": 368,
+        "width": 448,
         "color": 5
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
         -1520,
-        -48
+        -112
       ],
       "typeVersion": 1,
       "id": "0b95eba7-e3b4-4d91-8431-2cee7304ffa5",
@@ -599,13 +579,13 @@
     {
       "parameters": {
         "content": "## Gemini",
-        "height": 240,
+        "height": 368,
         "width": 784,
         "color": 6
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -144,
+        -240,
         -112
       ],
       "typeVersion": 1,
@@ -616,13 +596,13 @@
       "parameters": {
         "content": "## Alerts\n ",
         "height": 368,
-        "width": 512,
+        "width": 672,
         "color": 2
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        656,
-        -432
+        544,
+        -352
       ],
       "typeVersion": 1,
       "id": "d6b13550-cb4f-4468-ab8c-e83b66cbfe5d",
@@ -631,14 +611,14 @@
     {
       "parameters": {
         "content": "## Outputs\n",
-        "height": 512,
-        "width": 656,
+        "height": 576,
+        "width": 672,
         "color": 4
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        704,
-        0
+        544,
+        16
       ],
       "typeVersion": 1,
       "id": "c44399eb-15b9-4e6f-b67b-b907a188ea57",
@@ -655,8 +635,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        976,
-        -416
+        848,
+        -320
       ],
       "id": "01fd4fec-9ef0-460c-b229-11f34a0a2620",
       "name": "Send high priority email",
@@ -696,8 +676,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        752,
-        -320
+        608,
+        -240
       ],
       "id": "592ea522-df66-4fb5-8f93-781fbbe63b3a",
       "name": "If confidential sensitivity"
@@ -705,14 +685,14 @@
     {
       "parameters": {
         "content": "## Error: Unsupported File Type\n",
-        "height": 256,
-        "width": 448,
+        "height": 336,
+        "width": 496,
         "color": "#EC2745"
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -880,
-        240
+        -1312,
+        256
       ],
       "typeVersion": 1,
       "id": "db6b8728-d6a7-403c-8289-07c9ec43045e",
@@ -725,8 +705,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -816,
-        336
+        -1200,
+        416
       ],
       "id": "f37184e3-a22f-4488-9b65-885eefaac62a",
       "name": "Build unsupported file error"
@@ -741,8 +721,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        -592,
-        336
+        -1024,
+        416
       ],
       "id": "0b08ea09-78ad-4427-82af-7dd168f71341",
       "name": "Send unsupported file alert",
@@ -756,48 +736,87 @@
     },
     {
       "parameters": {
-        "content": "## Error: Gemini API Failed\n",
-        "height": 240,
-        "width": 448,
-        "color": "#E11D48"
+        "content": "## Error: Extract/Gemini/ Enrich API Failed \n",
+        "height": 336,
+        "width": 1088,
+        "color": "#EC2745"
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        80,
-        128
+        -816,
+        256
       ],
       "typeVersion": 1,
-      "id": "c50ce5a8-2294-4028-aa8d-4d1b49eef7d5",
+      "id": "0eb7d53b-38d7-4d07-8e0e-77363cc75956",
       "name": "Sticky Note6"
     },
     {
       "parameters": {
-        "jsCode": "const err = $input.first().json;\nconst doc = $('Add prompt').first().json;\n\nreturn [{\n  json: {\n    filename: doc.filename || doc.name || 'unknown',\n    file_type: doc.file_type || doc.fileExtension || 'unknown',\n    error: err.message || err.error || err.description || 'Gemini API request failed',\n    http_code: err.statusCode || err.httpCode || '',\n    details: JSON.stringify(err).slice(0, 500)\n  }\n}];"
+        "jsCode": "const item = $input.first().json;\nconst apiErr = item.error || {};\nconst doc = $('Add prompt').first().json;\n\nfunction cleanMessage(raw) {\n  if (!raw) return '';\n  const jsonStart = raw.indexOf('{');\n  if (jsonStart >= 0) {\n    try {\n      const parsed = JSON.parse(raw.slice(jsonStart));\n      if (parsed.error?.message) return parsed.error.message;\n    } catch {}\n  }\n  return raw;\n}\n\nreturn [{ json: {\n  error_stage: 'gemini',\n  filename: doc.filename || 'unknown',\n  file_type: doc.file_type || 'unknown',\n  error_message: cleanMessage(apiErr.message) || 'Gemini API request failed',\n  http_code: String(apiErr.status || apiErr.statusCode || ''),\n  details: JSON.stringify({\n    code: apiErr.code || '',\n    name: apiErr.name || '',\n    status: apiErr.status || apiErr.statusCode || '',\n    hint: apiErr.status === 503\n      ? 'Gemini model busy — retry in a few minutes'\n      : apiErr.status === 429\n      ? 'Rate limit hit — wait and retry'\n      : apiErr.status === 401 || apiErr.status === 403\n      ? 'Check Gemini API key in n8n credentials'\n      : ''\n  }).slice(0, 500)\n}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        128,
-        240
+        -560,
+        416
       ],
       "id": "7be34e9b-26f0-4cf7-b0a8-81ad2ddd7504",
-      "name": "Build Gemini error"
+      "name": "Tag Gemini error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst apiErr = item.error || {};\nconst doc = $('Download file').first().json;\n\nfunction cleanMessage(raw) {\n  if (!raw) return '';\n  const jsonStart = raw.indexOf('{');\n  if (jsonStart >= 0) {\n    try {\n      const parsed = JSON.parse(raw.slice(jsonStart));\n      if (parsed.error?.message) return parsed.error.message;\n    } catch {}\n  }\n  return raw;\n}\n\nreturn [{ json: {\n  error_stage: 'extract',\n  filename: doc.name || doc.fileName || 'unknown',\n  file_type: doc.fileExtension || 'unknown',\n  error_message: cleanMessage(apiErr.message) || 'Extract API request failed',\n  http_code: String(apiErr.status || apiErr.statusCode || ''),\n  details: JSON.stringify({\n    code: apiErr.code || '',\n    name: apiErr.name || '',\n    status: apiErr.status || apiErr.statusCode || '',\n    hint: apiErr.code === 'ECONNREFUSED'\n      ? 'extract_api not running or not reachable on port 8001'\n      : ''\n  }).slice(0, 500)\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        416
+      ],
+      "id": "9941c95a-b5f9-47a2-b324-4d73a2375e25",
+      "name": "Tag extract error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst apiErr = item.error || {};\nconst g = $('Parse Gemini').first().json;\n\nfunction cleanMessage(raw) {\n  if (!raw) return '';\n  const jsonStart = raw.indexOf('{');\n  if (jsonStart >= 0) {\n    try {\n      const parsed = JSON.parse(raw.slice(jsonStart));\n      if (parsed.error?.message) return parsed.error.message;\n    } catch {}\n  }\n  return raw;\n}\n\nreturn [{ json: {\n  error_stage: 'enrich',\n  filename: g.filename || 'unknown',\n  file_type: g.file_type || 'unknown',\n  error_message: cleanMessage(apiErr.message) || 'Enrich API request failed',\n  http_code: String(apiErr.status || apiErr.statusCode || ''),\n  partial_summary: (g.summary || '').slice(0, 200),\n  details: JSON.stringify({\n    code: apiErr.code || '',\n    name: apiErr.name || '',\n    status: apiErr.status || apiErr.statusCode || '',\n    hint: apiErr.code === 'ECONNREFUSED'\n      ? 'metadata_api not running or not reachable on port 8000'\n      : ''\n  }).slice(0, 500)\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        416
+      ],
+      "id": "f86aa5c9-935c-447f-a1df-4158bbda9cee",
+      "name": "Tag enrich error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $input.first().json;\nconst titles = {\n  extract: 'Extract API Failed',\n  gemini: 'Gemini API Failed',\n  enrich: 'Metadata Enrichment Failed'\n};\nreturn [{ json: {\n  subject: `[ERROR] ${e.error_stage}: ${e.filename}`,\n  message: `<h2>${titles[e.error_stage] || 'Processing Failed'}</h2>\n    <p><b>File:</b> ${e.filename}</p>\n    <p><b>Type:</b> ${e.file_type}</p>\n    <p><b>Stage:</b> ${e.error_stage}</p>\n    <p><b>Error:</b> ${e.error_message}</p>\n    ${e.http_code ? `<p><b>HTTP:</b> ${e.http_code}</p>` : ''}\n    ${e.partial_summary ? `<p><b>AI summary:</b> ${e.partial_summary}</p>` : ''}\n    ${e.details ? `<p><b>Details:</b> ${e.details}</p>` : ''}\n    <hr><p><i>Sent automatically by n8n Document Analyst</i></p>`\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        416
+      ],
+      "id": "8547f009-e6fe-4e1d-82b4-f5219ac1a18e",
+      "name": "Build error"
     },
     {
       "parameters": {
         "sendTo": "ido14725666@gmail.com",
-        "subject": "=[ERROR] Gemini failed: {{ $json.filename }}",
-        "message": "=<h2>Gemini API Processing Failed</h2>\n<p><b>File:</b> {{ $json.filename }}</p>\n<p><b>Type:</b> {{ $json.file_type }}</p>\n<p><b>Error:</b> {{ $json.error }}</p>\n<p><b>HTTP code:</b> {{ $json.http_code }}</p>\n<p><b>Details:</b> {{ $json.details }}</p>\n<hr>\n<p><i>Document was not processed. Check n8n Executions for full logs.</i></p>",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.message }}",
         "options": {}
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        320,
-        240
+        32,
+        416
       ],
       "id": "46bce399-a69f-4fef-abf6-05bf143a1295",
-      "name": "Send Gemini failure alert",
+      "name": "Send error alert",
       "webhookId": "b58ca6bc-c80f-400c-8bd4-460551289620",
       "credentials": {
         "gmailOAuth2": {
@@ -805,6 +824,32 @@
           "name": "Gmail account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst report = {\n  document_id: item.document_id,\n  filename: item.filename,\n  classification: item.classification,\n  department: item.department,\n  sentiment: item.sentiment,\n  sensitivity: item.sensitivity,\n  routing_tag: item.routing_tag,\n  confidence_score: item.confidence_score,\n  processed_at: item.processed_at,\n  summary: item.summary,\n  action_items: item.action_items,\n  entities: item.entities\n};\n\nconst baseName = item.filename.replace(/\\.[^.]+$/, '');\n\nconst jsonPath = `/data/output_docs/${baseName}_report.json`;\nconst mdPath = `/data/output_docs/${baseName}_report.md`;\n\nconst markdown = `# Document Report: ${item.filename}\n\n- **Document ID:** ${item.document_id}\n- **Classification:** ${item.classification}\n- **Department:** ${item.department}\n- **Sentiment:** ${item.sentiment}\n- **Sensitivity:** ${item.sensitivity}\n- **Routing tag:** ${item.routing_tag}\n\n## Summary\n${item.summary}\n\n## Action items\n${item.action_items}\n`;\n\nconst jsonBuffer = Buffer.from(JSON.stringify(report, null, 2), 'utf8');\nconst mdBuffer = Buffer.from(markdown, 'utf8');\n\nreturn [\n  {\n    json: { ...item, output_path: jsonPath },\n    binary: {\n      data: await this.helpers.prepareBinaryData(\n        jsonBuffer,\n        `${baseName}_report.json`,\n        'application/json'\n      )\n    }\n  },\n  {\n    json: { ...item, output_path: mdPath },\n    binary: {\n      data: await this.helpers.prepareBinaryData(\n        mdBuffer,\n        `${baseName}_report.md`,\n        'text/markdown'\n      )\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        272
+      ],
+      "id": "dfd52493-12d7-4eed-864d-d0f163483c8f",
+      "name": "Build report content"
+    },
+    {
+      "parameters": {
+        "jsCode": "const gemini = $('Parse Gemini').first().json;  // your parse node name\nconst enrich = $input.first().json;\n\nreturn [{\n  json: {\n    ...gemini,\n    ...enrich,\n    summary_short: (gemini.summary || '').slice(0, 500),\n    action_items: Array.isArray(gemini.action_items)\n      ? gemini.action_items.join(', ')\n      : gemini.action_items\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        272
+      ],
+      "id": "c9dadff7-2f43-4b04-8b59-a686827078eb",
+      "name": "Merge results"
     }
   ],
   "pinData": {},
@@ -871,6 +916,13 @@
             "type": "main",
             "index": 1
           }
+        ],
+        [
+          {
+            "node": "Tag extract error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -907,7 +959,7 @@
         ],
         [
           {
-            "node": "Build Gemini error",
+            "node": "Tag Gemini error",
             "type": "main",
             "index": 0
           }
@@ -918,7 +970,7 @@
       "main": [
         [
           {
-            "node": "merge resulsts",
+            "node": "Merge results",
             "type": "main",
             "index": 0
           },
@@ -927,24 +979,10 @@
             "type": "main",
             "index": 0
           }
-        ]
-      ]
-    },
-    "merge resulsts": {
-      "main": [
+        ],
         [
           {
-            "node": "Append row in sheet",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Build report conent",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Send a message",
+            "node": "Tag enrich error",
             "type": "main",
             "index": 0
           }
@@ -965,17 +1003,6 @@
     "Append row in sheet": {
       "main": [
         []
-      ]
-    },
-    "Build report conent": {
-      "main": [
-        [
-          {
-            "node": "Upload file",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "Google Drive Trigger": {
@@ -1029,11 +1056,76 @@
         ]
       ]
     },
-    "Build Gemini error": {
+    "Tag Gemini error": {
       "main": [
         [
           {
-            "node": "Send Gemini failure alert",
+            "node": "Build error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag extract error": {
+      "main": [
+        [
+          {
+            "node": "Build error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build error": {
+      "main": [
+        [
+          {
+            "node": "Send error alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag enrich error": {
+      "main": [
+        [
+          {
+            "node": "Build error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build report content": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge results": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build report content",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
             "type": "main",
             "index": 0
           }
@@ -1047,7 +1139,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "4903af66-787e-404d-86fe-df6aecd3c23a",
+  "versionId": "00e414cb-c7c1-470e-81f5-9e21b6af2e60",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "ce2bc86535d7d0c864687902389e4683bfa52770a28941e46f2df30ff2f77ac4"

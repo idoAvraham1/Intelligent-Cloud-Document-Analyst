@@ -1,6 +1,6 @@
 # Intelligent Cloud Document Analyst
 
-**Scenario:** Business documents · **Stack:** n8n · Gemini 3 Flash · Flask · Google Sheets · Gmail
+**Scenario:** Business documents · **Stack:** n8n · Gemini 3.5 Flash · Flask · Google Sheets · Gmail
 
 ---
 
@@ -9,7 +9,7 @@
 This project implements **2 n8n workflows** (JSON exports in `workflows/`):
 
 **1. Document Analyst (main)**  
-`incoming_docs` upload → parse (`extract_api` / Code) → Gemini analysis → enrich (`metadata_api`) → Google Sheets + `output_docs/` (`.json` + `.md`) + email · fallback: bad file type / Gemini error / confidential alert
+`incoming_docs` upload → parse (`extract_api` / Code) → Gemini analysis → enrich (`metadata_api`) → Google Sheets + `output_docs/` (`.json` + `.md`) + email · fallback: unsupported file / API failure / confidential alert
 
 **2. Daily digest (bonus)**  
 Every day at **4:15 PM** → read Google Sheets → filter last 24h → build summary → Gmail digest
@@ -51,7 +51,7 @@ Both Flask APIs must be running: `extract_api` (**8001**) · `metadata_api` (**8
 |-------|----------------|
 | **Trigger** | New file uploaded to `incoming_docs` (Google Drive) → download |
 | **Parsing** | Switch: **txt** (Code) · **pdf/docx** (`extract_api`) → Merge → Clean text |
-| **Gemini** | Prompt → Gemini 3 Flash (JSON) → Parse |
+| **Gemini** | Prompt → Gemini 3.5 Flash (JSON) → Parse |
 | **Enrich** | `metadata_api` — department, sensitivity, routing tag |
 | **Outputs** | Google Sheets row · `output_docs/{filename}_report.json` · `output_docs/{filename}_report.md` · completion email |
 
@@ -59,9 +59,11 @@ Both Flask APIs must be running: `extract_api` (**8001**) · `metadata_api` (**8
 
 | Branch | When | Result |
 |--------|------|--------|
-| Unsupported file | Switch fallback | Rejection email |
-| Gemini failure | HTTP error output | Alert email |
+| Unsupported file | Switch fallback (not txt/pdf/docx) | Rejection email |
+| API failure | Extract, Gemini, or Enrich HTTP error | Unified alert email |
 | Confidential doc | After Enrich | Immediate review email |
+
+**API error handling** — `PDF/docx parsing`, `Gemini API`, and `Enrich` use **Continue on error output** with retries. Each error branch tags the failed stage (`extract` / `gemini` / `enrich`), then flows into a shared **Build error** → **Send error alert** Gmail node. The email includes filename, HTTP code, error message, and a stage-specific hint (e.g. service down, rate limit). Unsupported file types stay on a separate branch — different payload shape, same alert pattern.
 
 **Proof of working outputs**
 
