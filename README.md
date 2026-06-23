@@ -124,3 +124,10 @@ Called after Gemini parsing. Adds business-specific metadata on top of the AI ou
 | `POST /enrich` | Adds `document_id`, `department`, `sensitivity`, `routing_tag`, `keyword_tags`, adjusted `confidence_score`, `processed_at` |
 
 Both services must be started before running the Document Analyst workflow.
+
+### Drive & Sheet links  
+
+**incoming docs:** https://drive.google.com/drive/folders/1f6S2vmI0DtyMAnvaNfMgBASTldg4Srod  
+**output_docs:** https://drive.google.com/drive/folders/1HwPH5E-1aIpV4GO0ATwLpSwCDPKQLZzH  
+**Sheet:** https://docs.google.com/spreadsheets/d/1-n8CBdpSwzuI5MeJIsaMLSgb9vmNyIwlwTCoaZ5bjuY/edit?usp=drivesdk
+
